@@ -970,8 +970,8 @@ activeDrag(antiPushIcon, 'antipushIcon', storage.antipushIcon or {})
 
 --
 -- ERING
-
-
+UI.Separator()
+UI.Label("ENERGY RING Config")
 local item = {eq = 3088, bp = 3051} -- ID del anillo equipado y en la mochila
 local hp = {min = 80, max = 99}     -- Porcentajes iniciales (equipar ≤80%, quitar ≥99%)
 local slot = SlotFinger
@@ -1054,9 +1054,10 @@ local function activeDrag(icon, nameMacro, position)
 end
 
 activeDrag(eRing, 'energyR', storage.energyR or {})
+UI.Separator()
+UI.Label("MWALL FRONT TARGET Config")
 
 local squaresThreshold = tonumber(storage.MWallDistance) or 2
-
 -- UI Elements
 UI.Label("MWALL ID")
 UI.TextEdit(storage.MWallID or "3180", function(widget, text)
@@ -1141,7 +1142,7 @@ local function activeDrag(widget, nameMacro, position)
 end
 
 activeDrag(mwaft, 'MagicWallIcon', storage.MagicWallIcon or {})
-
+UI.Separator()
 ---
 
 UI.Separator()
