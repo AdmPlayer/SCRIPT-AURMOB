@@ -978,18 +978,18 @@ local slot = SlotFinger
 local oldVersions = false           -- true para servidores sin equipar por hotkey
 
 -- TextEdit para editar los porcentajes
-UI.Label("HP% para equipar (Ej: 80 = 80%)")
+UI.Label("% para equipar")
 UI.TextEdit(hp.min, function(widget, text)
     hp.min = tonumber(text) or 80  -- Si no es número, usa 80 por defecto
 end)
 
-UI.Label("HP% para quitar (Ej: 99 = 99%)")
+UI.Label("% para desequipar")
 UI.TextEdit(hp.max, function(widget, text)
     hp.max = tonumber(text) or 99  -- Si no es número, usa 99 por defecto
 end)
 
 -- Macro original (sin cambios)
-eRing = macro(500, "erinf", function()
+eRing = macro(500, function()
     local life = hppercent()
     if life <= hp.min then
         equipItem(getSlot(slot))  -- Equipa si HP ≤ min
@@ -1069,7 +1069,7 @@ UI.TextEdit(storage.MWallDistance or "2", function(widget, text)
 end)
 
 -- Macro
-local mwaft = macro(200, "MAGIC WALL - TARGET", function()
+local mwaft = macro(200, function()
     local target = g_game.getAttackingCreature()
     if target then
         local mwallId = tonumber(storage.MWallID) or 3180
@@ -2195,7 +2195,7 @@ end
 -- Inicia el sistema de arrastre (y carga posición guardada si existe)
 activeDrag(mwBack, 'mwBackPosition', storage.mwBackPosition or {})
 
-local toggleDownMacro = macro(10, "Toggle Down", function() end)
+local toggleDownMacro = macro(10, function() end)
 
 -- Función principal del macro
 onCreaturePositionChange(function(creature, newPos, oldPos)
