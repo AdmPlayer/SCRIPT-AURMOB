@@ -969,6 +969,99 @@ end
 activeDrag(antiPushIcon, 'antipushIcon', storage.antipushIcon or {})
 
 --
+
+local amulet = 3081
+
+local SsaMightFull = macro(170, "SSA FULL", function()
+    if getNeck() == nil or getNeck():getId() ~= amulet then
+        g_game.equipItemId(amulet)
+        delay(30)
+    end
+end)
+
+local SsaFullIcon = addIcon("SsaFull", {item = 3081, text = "SSA FULL"}, function(icon, isOn)
+    SsaMightFull.setOn(isOn)
+end)
+
+-- Drag system (F2 to move)
+local function activeDrag(icon, nameMacro, position)
+    SsaFullIcon:breakAnchors()
+    SsaFullIcon:move(position.posX or 10, position.posY or 150)
+
+    SsaFullIcon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then
+            return false
+        end
+        SsaFullIcon:breakAnchors()
+        SsaFullIcon.movingReference = { x = mousePos.x - SsaFullIcon:getX(), y = mousePos.y - SsaFullIcon:getY() }
+        return true
+    end
+
+    SsaFullIcon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then
+            return false
+        end
+        local parentRect = widget:getParent():getRect()
+        local x = math.min(math.max(parentRect.x, mousePos.x - widget.movingReference.x), parentRect.x + parentRect.width - widget:getWidth())
+        local y = math.min(math.max(parentRect.y - widget:getParent():getMarginTop(), mousePos.y - widget.movingReference.y), parentRect.y + parentRect.height - widget:getHeight())
+        widget:move(x, y)
+        return true
+    end
+
+    SsaFullIcon.onDragLeave = function(widget, pos)
+        storage[nameMacro] = { posX = SsaFullIcon:getX(), posY = SsaFullIcon:getY() }
+    end
+end
+
+activeDrag(SsaFullIcon, 'SsaFull', storage.SsaFull or {})
+
+--
+
+local mightRingId = 3048
+
+local MightFullMacro = macro(170, "MIGHT FULL", function()
+    if getFinger() == nil or getFinger():getId() ~= mightRingId then
+        g_game.equipItemId(mightRingId)
+        delay(30)
+    end
+end)
+
+local MightFullIcon = addIcon("MightFull", {item = 3048, text = "SSA-MIG"}, function(icon, isOn)
+    MightFullMacro.setOn(isOn)
+end)
+
+-- Drag system (F2 to move)
+local function activeDrag(icon, nameMacro, position)
+    MightFullIcon:breakAnchors()
+    MightFullIcon:move(position.posX or 10, position.posY or 180)  -- Default position slightly below SSA icon
+
+    MightFullIcon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then
+            return false
+        end
+        MightFullIcon:breakAnchors()
+        MightFullIcon.movingReference = { x = mousePos.x - MightFullIcon:getX(), y = mousePos.y - MightFullIcon:getY() }
+        return true
+    end
+
+    MightFullIcon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then
+            return false
+        end
+        local parentRect = widget:getParent():getRect()
+        local x = math.min(math.max(parentRect.x, mousePos.x - widget.movingReference.x), parentRect.x + parentRect.width - widget:getWidth())
+        local y = math.min(math.max(parentRect.y - widget:getParent():getMarginTop(), mousePos.y - widget.movingReference.y), parentRect.y + parentRect.height - widget:getHeight())
+        widget:move(x, y)
+        return true
+    end
+
+    MightFullIcon.onDragLeave = function(widget, pos)
+        storage[nameMacro] = { posX = MightFullIcon:getX(), posY = MightFullIcon:getY() }
+    end
+end
+
+activeDrag(MightFullIcon, 'MightFull', storage.MightFull or {})
+
 -- ERING
 UI.Label("ENERGY RING Config")
 local item = {eq = 3088, bp = 3051} -- ID del anillo equipado y en la mochila
