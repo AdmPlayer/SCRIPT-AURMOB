@@ -1,0 +1,1834 @@
+-- Configuración inicial del storage para los iconos
+
+if storage.botIconsVisibility == nil then
+    storage.botIconsVisibility = {
+        caveBot = true,
+        targetBot = true,
+        attackBot = true,
+        antiPush = true,
+        antiPushTrash = true,
+        follow = true,
+        holdTarget = true,
+        ssaFull = true,
+        mightFull = true,
+        energyRing = true,
+        magicWall = true,
+        magicWallBack = true,
+        bugMapMobile = true,
+        useAll = true,
+        noAttack = true,
+        spamCleaner = true,
+        pvpToggle = true,
+        bombSystem = true,
+        flowerSystem = true,
+        manaShield = true,
+        minimapToggle = true,
+        exivaSystem = true  -- Nueva opción para el sistema de exiva
+    }
+end
+
+if storage.energyRingSettings == nil then
+    storage.energyRingSettings = {
+        minHP = 80,
+        maxHP = 99,
+        oldVersions = false
+    }
+end
+
+if storage.MWallSettings == nil then
+    storage.MWallSettings = {
+        id = 3180,
+        distance = 2
+    }
+end
+
+
+-- CaveBot Icon
+local cIcon = addIcon("cI", {text = "Cave Bot", switchable = false, moveable = true}, function()
+    if CaveBot.isOff() then 
+        CaveBot.setOn()
+    else 
+        CaveBot.setOff()
+    end
+end)
+cIcon:setSize({height = 30, width = 50})
+cIcon.text:setFont('verdana-11px-rounded')
+if not storage.botIconsVisibility.caveBot then cIcon:hide() end
+
+-- TargetBot Icon
+local tIcon = addIcon("tI", {text = "Target Bot", switchable = false, moveable = true}, function()
+    if TargetBot.isOff() then 
+        TargetBot.setOn()
+    else 
+        TargetBot.setOff()
+    end
+end)
+tIcon:setSize({height = 30, width = 50})
+tIcon.text:setFont('verdana-11px-rounded')
+if not storage.botIconsVisibility.targetBot then tIcon:hide() end
+
+-- AttackBot Icon
+local aIcon = addIcon("aI", {text = "Attack Bot", switchable = false, moveable = true}, function()
+    if AttackBot.isOff() then 
+        AttackBot.setOn()
+    else 
+        AttackBot.setOff()
+    end
+end)
+aIcon:setSize({height = 30, width = 50})
+aIcon.text:setFont('verdana-11px-rounded')
+if not storage.botIconsVisibility.attackBot then aIcon:hide() end
+
+-- Status Updater
+macro(50, function()
+    -- CaveBot Status
+    if CaveBot.isOn() then
+        cIcon.text:setColoredText({"CAVE Bot", "green","\nON","red"})
+    else
+        cIcon.text:setColoredText({"CAVE Bot", "white","\nOFF","red" })
+    end
+    
+    -- TargetBot Status
+    if TargetBot.isOn() then
+        tIcon.text:setColoredText({"TARGET Bot", "white", "\nON", "green"})
+    else
+        tIcon.text:setColoredText({"TARGET Bot", "white", "\nOFF", "red"})
+    end
+    
+    -- AttackBot Status
+    if AttackBot.isOn() then
+        aIcon.text:setColoredText({"ATTACK <[^.^]>\n-ON-", "green"})
+    else
+        aIcon.text:setColoredText({"ATTACK <[o.o]>\nBOT", "white"})
+    end
+end)
+
+-- Configuración AntiPush
+if not storage.AntiPushItems then
+    storage.AntiPushItems = "3031,3035"
+end
+
+local function stringToTable(inputstr, sep)
+    if sep == nil then
+        sep = ","
+    end
+    local t = {}
+    for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+        table.insert(t, tonumber(str))
+    end
+    return t
+end
+
+local goldIds = {
+    [3031] = 3035,
+    [3035] = 3043
+}
+
+local function AntiPush()
+    local dropItems = stringToTable(storage.AntiPushItems)
+    local tile = g_map.getTile(pos())
+    if not tile then return end
+    local thing = tile:getTopThing()
+    if not thing then return end
+    for i, item in pairs(dropItems) do
+        if item ~= thing:getId() then
+            local dropItem = findItem(item)
+            if dropItem then
+                if dropItem:getCount() == 1 then
+                    g_game.move(dropItem, pos(), 1)
+                else
+                    g_game.move(dropItem, pos(), 2)
+                end
+            elseif goldIds[item] ~= nil then
+                local nextCurrency = findItem(goldIds[item])
+                if not nextCurrency then return end
+                g_game.use(nextCurrency)
+            end
+        end
+    end
+end
+
+local isOn = false
+local antiPushIcon = addIcon("antipushIcon", {item={id=3043, count=3}, text="Anti PUSH"},           
+macro(600, function(m)
+    AntiPush()
+    isOn = true
+    schedule(600, function() 
+        if m.isOff() then
+            isOn=false 
+        end
+    end)
+end))
+if not storage.botIconsVisibility.antiPush then antiPushIcon:hide() end
+
+onPlayerPositionChange(function() 
+    if not isOn then return end
+    AntiPush()
+end)
+
+-- Improved F2 Drag System for all icons
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        icon:breakAnchors()
+        icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+    end
+end
+
+-- Macro Anti Push Trash
+local aPushTrash = macro(255, "", function()
+    local trashitem = nil
+    for _, tile in pairs(g_map.getTiles(posz())) do
+        if distanceFromPlayer(tile:getPosition()) == 1 and #tile:getItems() ~= 0 and not tile:getTopUseThing():isNotMoveable() then
+            trashitem = tile:getTopUseThing()
+            g_game.move(trashitem, pos(), trashitem:getCount())
+            return
+        end
+    end
+end)
+
+-- Creación del icono Anti Push Trash
+aPushTrashIcon = addIcon("trashantiPush", {item = 38376, text = "Anti Push Trash"}, aPushTrash)
+if not storage.botIconsVisibility.antiPushTrash then aPushTrashIcon:hide() end
+
+-- Función para el sistema de arrastre (compartida)
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        icon:breakAnchors()
+        icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+    end
+end
+
+local flwT = addIcon("flwT", {item = 16201, text = "FOLLOW"}, 
+macro(200, function()
+    if g_game.isOnline() and g_game.isAttacking() then
+        g_game.setChaseMode(1)
+    end
+end))
+if not storage.botIconsVisibility.follow then flwT:hide() end
+
+-- Sistema de arrastre unificado (compartido con otros iconos)
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        icon:breakAnchors()
+        icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+    end
+end
+
+local oldTargetMacro = macro(501, "", nil, function()
+    if g_game.isAttacking() then
+        oldTarget = g_game.getAttackingCreature()
+    end
+    if (oldTarget and oldTarget:getPosition()) then
+        if (not g_game.isAttacking() and getDistanceBetween(pos(), oldTarget:getPosition()) <= 8) then
+            if (oldTarget:getPosition().z == posz()) then
+                g_game.attack(oldTarget)
+            end
+        end
+    end
+end)
+
+-- Icono Hold Target
+local oldTargetIcon = addIcon("oldTarget", {item = 2025, text = "HOLD"}, oldTargetMacro)
+if not storage.botIconsVisibility.holdTarget then oldTargetIcon:hide() end
+
+-- Sistema de arrastre unificado
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        icon:breakAnchors()
+        icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+    end
+end
+
+-- Macro SSA Full
+local amulet = 3081
+local SsaMightFull = macro(170, function()
+    if getNeck() == nil or getNeck():getId() ~= amulet then
+        g_game.equipItemId(amulet)
+        delay(30)
+    end
+end)
+
+-- Icono SSA Full
+local SsaFullIcon = addIcon("SsaFull", {item = 3081, text = "SSA FULL"}, function(icon, isOn)
+    SsaMightFull.setOn(isOn)
+end)
+if not storage.botIconsVisibility.ssaFull then SsaFullIcon:hide() end
+
+-- Sistema de arrastre unificado
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        icon:breakAnchors()
+        icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+    end
+end
+
+local mightRingId = 3048
+local MightFullMacro = macro(170, function()
+local fingerItem = g_game.getLocalPlayer():getInventoryItem(InventorySlotRing)
+if fingerItem == nil or fingerItem:getId() ~= mightRingId then
+g_game.equipItemId(mightRingId)
+delay(30)
+end
+end)
+
+-- Icono Might Ring
+local MightFullIcon = addIcon("MightFull", {item = 3048, text = "MIGHT"}, function(icon, isOn)
+MightFullMacro.setOn(isOn)
+end)
+if not storage.botIconsVisibility.mightFull then MightFullIcon:hide() end
+
+-- Sistema de arrastre unificado
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+icon:breakAnchors()
+icon:move(storage[storageKey] and storage[storageKey].posX or defaultX,
+storage[storageKey] and storage[storageKey].posY or defaultY)
+
+icon.onDragEnter = function(widget, mousePos)
+if not g_keyboard.isKeyPressed("F2") then return false end
+icon:breakAnchors()
+icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+return true
+end
+
+icon.onDragMove = function(widget, mousePos, moved)
+if not g_keyboard.isKeyPressed("F2") then return false end
+local parentRect = widget:getParent():getRect()
+local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+widget:move(x, y)
+return true
+end
+
+icon.onDragLeave = function(widget, pos)
+storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+end
+end
+
+-- Configurar arrastre para todos los iconos
+local energyRingItems = {eq = 3088, bp = 3051} -- ID del anillo equipado y en la mochila
+
+-- Macro Energy Ring
+local eRingMacro = macro(500, function()
+    local life = hppercent()
+    if life <= storage.energyRingSettings.minHP then
+        equipEnergyRing(getSlot(SlotFinger))
+    elseif life >= storage.energyRingSettings.maxHP then
+        removeEnergyRing(getSlot(SlotFinger))
+    end
+end)
+
+function equipEnergyRing(equipped)
+    if not equipped or equipped:getId() ~= energyRingItems.eq then
+        if storage.energyRingSettings.oldVersions then
+            local ring = findItem(energyRingItems.bp)
+            if ring then moveToSlot(ring, SlotFinger) end
+        else
+            g_game.equipItemId(energyRingItems.bp)
+        end
+    end
+end
+
+function removeEnergyRing(equipped)
+    if equipped and equipped:getId() == energyRingItems.eq then
+        if storage.energyRingSettings.oldVersions then
+            moveToSlot(equipped, SlotBack)
+        else
+            g_game.equipItemId(energyRingItems.eq)
+        end
+    end
+end
+
+-- Icono Energy Ring
+local eRingIcon = addIcon("energyR", {item = 3051, text = "E-RING"}, function(icon, isOn)
+    eRingMacro.setOn(isOn)
+end)
+if not storage.botIconsVisibility.energyRing then eRingIcon:hide() end
+
+-- Sistema de arrastre unificado
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        icon:breakAnchors()
+        icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+    end
+end
+
+-- Configurar arrastre para todos los iconos
+local mwallMacro = macro(200, function()
+    local target = g_game.getAttackingCreature()
+    if target then
+        local mwallId = tonumber(storage.MWallSettings.id) or 3180
+        local squaresThreshold = tonumber(storage.MWallSettings.distance) or 2
+        local targetPos = target:getPosition()
+        local targetDir = target:getDirection()
+        local mwallTile
+        
+        if targetDir == 0 then -- north
+            targetPos.y = targetPos.y - squaresThreshold
+            mwallTile = g_map.getTile(targetPos)
+            if mwallTile then
+                useWith(mwallId, mwallTile:getTopUseThing())
+            end
+        elseif targetDir == 1 then -- east
+            targetPos.x = targetPos.x + squaresThreshold
+            mwallTile = g_map.getTile(targetPos)
+            if mwallTile then
+                useWith(mwallId, mwallTile:getTopUseThing())
+            end
+        elseif targetDir == 2 then -- south
+            targetPos.y = targetPos.y + squaresThreshold
+            mwallTile = g_map.getTile(targetPos)
+            if mwallTile then
+                useWith(mwallId, mwallTile:getTopUseThing())
+            end
+        elseif targetDir == 3 then -- west
+            targetPos.x = targetPos.x - squaresThreshold
+            mwallTile = g_map.getTile(targetPos)
+            if mwallTile then
+                useWith(mwallId, mwallTile:getTopUseThing())
+            end
+        end
+    end
+end)
+
+-- Icono Magic Wall
+local mwallIcon = addIcon("MagicWallIcon", {item = 3180, text = "MWall"}, function(icon, isOn)
+    mwallMacro.setOn(isOn)
+end)
+if not storage.botIconsVisibility.magicWall then mwallIcon:hide() end
+
+-- Sistema de arrastre unificado
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        icon:breakAnchors()
+        icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+    end
+end
+
+-- Configurar arrastre para todos los iconos
+local mwBackMacro = macro(101, "", function() end)
+onPlayerPositionChange(function(newPos, oldPos)
+if oldPos and oldPos.z == posz() then
+local tile = g_map.getTile(oldPos)
+if mwBackMacro.isOn() and tile and tile:isWalkable() then
+useWith(3180, tile:getTopUseThing())
+mwBackMacro.setOff()
+end
+end
+end)
+
+-- Icono Magic Wall Back
+local mwBackIcon = addIcon("mwBack", {item = 3180, text = "BACKME"}, mwBackMacro)
+if not storage.botIconsVisibility.magicWallBack then mwBackIcon:hide() end
+
+-- Sistema de arrastre unificado
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+icon:breakAnchors()
+icon:move(storage[storageKey] and storage[storageKey].posX or defaultX,
+storage[storageKey] and storage[storageKey].posY or defaultY)
+
+icon.onDragEnter = function(widget, mousePos)
+if not g_keyboard.isKeyPressed("F2") then return false end
+icon:breakAnchors()
+icon.movingReference = {x = mousePos.x - icon:getX(), y = mousePos.y - icon:getY()}
+return true
+end
+
+icon.onDragMove = function(widget, mousePos, moved)
+if not g_keyboard.isKeyPressed("F2") then return false end
+local parentRect = widget:getParent():getRect()
+local x = math.max(parentRect.x, math.min(mousePos.x - icon.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+local y = math.max(parentRect.y, math.min(mousePos.y - icon.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+widget:move(x, y)
+return true
+end
+
+icon.onDragLeave = function(widget, pos)
+storage[storageKey] = {posX = icon:getX(), posY = icon:getY()}
+end
+end
+
+-- Configurar arrastre para todos los iconos
+local toggleDownMacro = macro(10, function() end)
+
+onCreaturePositionChange(function(creature, newPos, oldPos)
+local currentTarget = g_game.getAttackingCreature()
+local followingCreature = g_game.getFollowingCreature()
+
+if creature == currentTarget or creature == followingCreature then
+if oldPos and oldPos.z == posz() then
+local previousTile = g_map.getTile(oldPos)
+if toggleDownMacro.isOn() and previousTile and previousTile:isWalkable() then
+useWith(3180, previousTile:getTopUseThing())
+toggleDownMacro.setOff()
+end
+end
+end
+end)
+
+-- Icono Toggle Down
+local toggleDownIcon = addIcon("toggleDownControl", {item=3180, text="T-DOWN"}, toggleDownMacro)
+if not storage.botIconsVisibility.toggleDown then toggleDownIcon:hide() end
+
+-- Sistema de arrastre unificado mejorado
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+icon:breakAnchors()
+icon:move(storage[storageKey] and storage[storageKey].posX or defaultX,
+storage[storageKey] and storage[storageKey].posY or defaultY)
+
+icon.onDragEnter = function(widget, mousePos)
+if not g_keyboard.isKeyPressed("F2") then return false end
+widget:breakAnchors()
+widget.movingReference = {
+x = mousePos.x - widget:getX(),
+y = mousePos.y - widget:getY()
+}
+return true
+end
+
+icon.onDragMove = function(widget, mousePos, moved)
+if not g_keyboard.isKeyPressed("F2") then return false end
+local parentRect = widget:getParent():getRect()
+local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x,
+parentRect.x + parentRect.width - widget:getWidth()))
+local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y,
+parentRect.y + parentRect.height - widget:getHeight()))
+widget:move(x, y)
+return true
+end
+
+icon.onDragLeave = function(widget, pos)
+storage[storageKey] = {
+posX = widget:getX(),
+posY = widget:getY()
+}
+end
+end
+
+local bugMapMobile = {
+    cursorWidget = g_ui.getRootWidget():recursiveGetChildById('pointer'),
+    availableKeys = {
+        ['Up'] = { 0, -6 },
+        ['Down'] = { 0, 6 },
+        ['Left'] = { -7, 0 },
+        ['Right'] = { 7, 0 }
+    },
+    initialPos = nil
+}
+
+-- Inicializar posición solo una vez cuando el script carga
+if not bugMapMobile.initialPos and bugMapMobile.cursorWidget then
+    bugMapMobile.initialPos = { 
+        x = bugMapMobile.cursorWidget:getPosition().x / bugMapMobile.cursorWidget:getWidth(), 
+        y = bugMapMobile.cursorWidget:getPosition().y / bugMapMobile.cursorWidget:getHeight() 
+    }
+end
+
+function bugMapMobile.logic()
+    if not bugMapMobile.cursorWidget or not bugMapMobile.initialPos then return end
+    
+    local pos = pos()
+    local currentPos = bugMapMobile.cursorWidget:getPosition()
+    local keypadPos = { 
+        x = currentPos.x / bugMapMobile.cursorWidget:getWidth(), 
+        y = currentPos.y / bugMapMobile.cursorWidget:getHeight() 
+    }
+    local diffPos = { 
+        x = bugMapMobile.initialPos.x - keypadPos.x, 
+        y = bugMapMobile.initialPos.y - keypadPos.y 
+    }
+
+    if (math.abs(diffPos.y) < 0.46) then
+        if (diffPos.x > 0.1) then
+            pos.x = pos.x + bugMapMobile.availableKeys['Left'][1]
+        elseif (diffPos.x < -0.1) then
+            pos.x = pos.x + bugMapMobile.availableKeys['Right'][1]
+        else return end
+    elseif (math.abs(diffPos.x) < 0.46) then
+        if (diffPos.y > 0.1) then
+            pos.y = pos.y + bugMapMobile.availableKeys['Up'][2]
+        elseif (diffPos.y < -0.1) then
+            pos.y = pos.y + bugMapMobile.availableKeys['Down'][2]
+        else return end
+    end
+
+    local tile = g_map.getTile(pos)
+    if (not tile) then return end
+
+    g_game.use(tile:getTopUseThing())
+end
+
+-- Macro e Icono Bug Map Mobile
+local bugMapMacro = macro(18, "", bugMapMobile.logic)
+local bugMapIcon = addIcon("bugMapIcon", {item = 10200, text = "BUG MAP"}, function(icon, isOn)
+    bugMapMacro.setOn(isOn)
+end)
+if not storage.botIconsVisibility.bugMapMobile then bugMapIcon:hide() end
+
+-- Sistema de arrastre unificado mejorado
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {
+            x = mousePos.x - widget:getX(),
+            y = mousePos.y - widget:getY()
+        }
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, 
+                       parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, 
+                       parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {
+            posX = widget:getX(),
+            posY = widget:getY()
+        }
+    end
+end
+
+function distanceFromPlayer(position)
+    local playerPosition = g_game.getLocalPlayer():getPosition()
+    return math.max(math.abs(playerPosition.x - position.x), math.abs(playerPosition.y - position.y))
+end
+
+storage.shovel = 3457  -- IDs originales
+storage.rope = 3003
+storage.machete = 3308
+storage.scythe = 3453
+
+local useId = { 34847, 1764, 21051, 30823, 6264, 5282, 20453, 20454, 20474, 11708, 11705, 
+                6257, 6256, 2772, 27260, 2773, 1632, 1633, 1948, 435, 6252, 6253, 5007, 4911, 
+                1629, 1630, 5108, 5107, 5281, 1968, 435, 1948, 5542, 31116, 31120, 30742, 31115, 
+                31118, 20474, 5737, 5736, 5734, 5733, 31202, 31228, 31199, 31200, 33262, 30824, 
+                5125, 5126, 5116, 5117, 8257, 8258, 8255, 8256, 5120, 30777, 30776, 23873, 23877,
+                5736, 6264, 31262, 31130, 31129, 6250, 6249, 5122, 30049, 7131, 7132, 7727 }
+local shovelId = { 606, 593, 867, 608 }
+local ropeId = { 17238, 12202, 12935, 386, 421, 21966, 14238 }
+local macheteId = { 2130, 3696 }
+local scytheId = { 3653 }
+
+useAll = macro(310, function(self)
+    for _, tile in pairs(g_map.getTiles(posz())) do
+        if distanceFromPlayer(tile:getPosition()) < 2 then
+            for _, item in pairs(tile:getItems()) do
+                if table.find(useId, item:getId()) then
+                    use(item)
+                    useAll.setOff()
+                    return
+                elseif table.find(shovelId, item:getId()) then
+                    useWith(storage.shovel, item)
+                    useAll.setOff()
+                    return
+                elseif table.find(ropeId, item:getId()) then
+                    useWith(storage.rope, item) 
+                    useAll.setOff()
+                    return
+                elseif table.find(macheteId, item:getId()) then
+                    useWith(storage.machete, item)
+                    useAll.setOff()
+                    return
+                elseif table.find(scytheId, item:getId()) then
+                    useWith(storage.scythe, item)
+                    useAll.setOff()
+                    return
+                end
+            end
+        end
+    end
+    self.setOn(false)
+end)
+
+useAllPro = addIcon("useall", {item = 9599, text = "USE ALL", switchable = false}, function()
+    if useAll.isOn() then
+        useAll.setOff()
+    else
+        useAll.setOn()
+    end
+end)
+if not storage.botIconsVisibility.useAll then useAllPro:hide() end
+
+-- =============================================
+-- SISTEMA DE ARRASTRE (COMPATIBLE CON LOS DEMÁS)
+-- =============================================
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {x = mousePos.x - widget:getX(), y = mousePos.y - widget:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = widget:getX(), posY = widget:getY()}
+    end
+end
+
+local cancelAttackIcon = addIcon("stopAttack", {item = 34023, text = "NO ATK", switchable = false}, function()
+    g_game.cancelAttackAndFollow()
+    g_game.cancelAttackAndFollow()
+    g_game.cancelAttackAndFollow()  -- Triple confirmación como en el original
+end)
+if not storage.botIconsVisibility.noAttack then cancelAttackIcon:hide() end
+
+-- =============================================
+-- SISTEMA DE ARRASTRE (COMPATIBLE CON LOS DEMÁS)
+-- =============================================
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {x = mousePos.x - widget:getX(), y = mousePos.y - widget:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = widget:getX(), posY = widget:getY()}
+    end
+end
+
+local spamCleanerMacro = macro(500, function() 
+    modules.game_textmessage.clearMessages()
+    g_map.cleanTexts()
+end)
+
+local spamCleanerIcon = addIcon("NoOrangeTxt", {item = 1982, text = "SPAM"}, spamCleanerMacro)
+if not storage.botIconsVisibility.spamCleaner then spamCleanerIcon:hide() end
+
+-- =============================================
+-- SISTEMA DE ARRASTRE UNIFICADO (ACTUALIZADO)
+-- =============================================
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {x = mousePos.x - widget:getX(), y = mousePos.y - widget:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = widget:getX(), posY = widget:getY()}
+    end
+end
+
+local pvpToggleIcon = addIcon("onetwo", {item = 37337, text = "PVP"}, function(icon, isOn)
+    g_game.setSafeFight(not isOn)
+end)
+if not storage.botIconsVisibility.pvpToggle then pvpToggleIcon:hide() end
+
+-- =============================================
+-- SISTEMA DE ARRASTRE UNIFICADO (ACTUALIZADO)
+-- =============================================
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {x = mousePos.x - widget:getX(), y = mousePos.y - widget:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = widget:getX(), posY = widget:getY()}
+    end
+end
+
+local bombs = { 3192 } -- IDs das bombas
+local fireId = { 2118, 2122, 105, 2123, 2124, 2121, 2126, 2119 } -- ID do fogo
+local flowerId = { 2981, 2983, 2984, 2985 } -- ID da flor
+local destroy = 3148
+
+local function getNearTiles(pos)
+    local tiles = {}
+    for x = -1, 1 do
+        for y = -1, 1 do
+            if not (x == 0 and y == 0) then -- Exclude the tile the player is standing on
+                local tilePos = {x = pos.x + x, y = pos.y + y, z = pos.z}
+                local tile = g_map.getTile(tilePos)
+                if tile then
+                    table.insert(tiles, tile)
+                end
+            end
+        end
+    end
+    return tiles
+end
+
+local bombMacro = macro(120, "", function()
+    local main_delay = g_game.getPing() / 2
+    local player = g_game.getLocalPlayer()
+    if not player then return end
+    local playerPos = player:getPosition()
+    local tilesAround = getNearTiles(playerPos)
+
+    if isInPz() then return end -- Checa se está no pz e retorna
+
+    for _, bombId in ipairs(bombs) do
+        local bomb = findItem(bombId)
+        if bomb then
+            for i = 1, #tilesAround do
+                local tile_around = tilesAround[i]
+                if tile_around:getTopUseThing() and not table.find(fireId, tile_around:getTopUseThing():getId()) and not table.find(flowerId, tile_around:getTopUseThing():getId()) and tile_around:isWalkable() then
+                    useWith(bomb, player)
+                    return
+                end
+            end
+        end
+    end
+end)
+
+local bombIcon = addIcon("bomb", { item = { id = 2118 }, movable = true, text = "FIRE"}, bombMacro)
+if not storage.botIconsVisibility.bombSystem then bombIcon:hide() end
+
+-- =============================================
+-- SISTEMA DE ARRASTRE UNIFICADO (ACTUALIZADO)
+-- =============================================
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {x = mousePos.x - widget:getX(), y = mousePos.y - widget:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = widget:getX(), posY = widget:getY()}
+    end
+end
+
+local flowerConfig = {
+    iconId = "Flowers"
+}
+
+local flowersIds = {2981, 2983, 2984, 2985}
+
+local dirToPos = {
+    {x=0 ,y=-1},
+    {x=1 ,y=0},
+    {x=0 ,y=1},
+    {x=-1 ,y=0},
+    {x=1 ,y=-1},
+    {x=1 ,y=1},
+    {x=-1 ,y=1},
+    {x=-1 ,y=-1}
+}
+
+local offSets = {
+    [North] = {SouthWest, South, SouthEast},
+    [East] = {SouthWest, West, NorthWest},
+    [South] = {NorthWest, North, NorthEast},
+    [West] = {NorthEast, East, SouthEast},
+    [NorthEast] = {SouthWest, West, NorthWest},
+    [SouthEast] = {SouthWest, West, NorthWest},
+    [SouthWest] = {NorthEast, East, SouthEast},
+    [NorthWest] = {NorthEast, East, SouthEast}
+}
+
+function pickNearFlowers()
+    local tiles = getNearTiles(pos())
+    table.insert(tiles, g_map.getTile(pos()))
+    for _, t in ipairs(tiles) do
+        local i = t:getTopThing()
+        if i and table.find(flowersIds, i:getId()) then
+            moveToSlot(i, SlotBack, i:getCount())
+        end
+    end
+end
+
+function getFlower()
+    for _, id in ipairs(flowersIds) do
+        if findItem(id) then
+            return findItem(id)
+        end
+    end
+end
+
+function dropFlowersOnBack()
+    local player = g_game.getLocalPlayer()
+    if not player then return end
+    local dir = player:getDirection()
+    local offSet = offSets[dir]
+    for i, offDir in ipairs(offSet) do
+        local auxPos = dirToPos[offDir+1]
+        local dropPos = {x=posx()+auxPos.x, y=posy()+auxPos.y, z = posz()}
+        local flower = getFlower()
+        if flower then
+            g_game.move(flower, dropPos, 1)
+        end
+    end
+end
+
+-- Create the icon
+local flowerIcon = addIcon(flowerConfig.iconId, {item = 2981, text = "Pick/Drop"}, function(icon, isOn)
+    if isOn then
+        dropFlowersOnBack()
+    else
+        pickNearFlowers()
+    end
+end)
+if not storage.botIconsVisibility.flowerSystem then flowerIcon:hide() end
+
+-- =============================================
+-- SISTEMA DE ARRASTRE UNIFICADO (ACTUALIZADO)
+-- =============================================
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {x = mousePos.x - widget:getX(), y = mousePos.y - widget:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = widget:getX(), posY = widget:getY()}
+    end
+end
+
+local manaShieldIcon = addIcon("manaShield", {item = 23541, text = "UTAMO"}, function(icon, isOn)
+    if isOn then
+        if not hasManaShield() then
+            say("Utamo Vita")
+        end
+    else
+        if hasManaShield() then
+            say("Exana Vita")
+        end
+    end
+end)
+
+if not storage.botIconsVisibility.manaShield then manaShieldIcon:hide() end
+
+-- =============================================
+-- SISTEMA DE ARRASTRE UNIFICADO (ACTUALIZADO)
+-- =============================================
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {x = mousePos.x - widget:getX(), y = mousePos.y - widget:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = widget:getX(), posY = widget:getY()}
+    end
+end
+
+local minimapWindow = modules.game_minimap.minimapWindow
+local rootWidget = g_ui.getRootWidget()
+local lastPos = storage.minimapLastPos or {x = 150, y = 100}
+local tam = math.floor(rootWidget:getRect().height/1.8)
+
+-- Create the minimap toggle icon
+local miniMapIcon = addIcon("toggleMiniMap", {item=43739, text="MAP"}, function(icon, isOn)
+    if isOn then
+        minimapWindow:setParent(modules.game_interface.getRootPanel())
+        minimapWindow:show()
+        minimapWindow:move(lastPos.x, lastPos.y)
+        minimapWindow:resize(tam, tam)
+    else
+        minimapWindow:setParent(modules.game_interface.getRightPanel())
+        minimapWindow:hide()
+        minimapWindow:resize(192, 150)
+        minimapWindow:setMarginLeft(0)
+    end
+end)
+if not storage.botIconsVisibility.minimapToggle then miniMapIcon:hide() end
+
+-- Save minimap position when dragged
+local copyOnDrag = minimapWindow.onDragLeave
+minimapWindow.onDragLeave = function(widget, droppedWidget, mousePos)
+    copyOnDrag(widget, droppedWidget, mousePos)
+    lastPos = {x = minimapWindow:getX(), y = minimapWindow:getY()}
+    storage.minimapLastPos = lastPos  -- Guardar posición en storage
+end
+
+-- Resize minimap when window changes
+rootWidget.onGeometryChange[7] = function(widget)
+    if minimapWindow:isHidden() then return end
+    tam = math.floor(rootWidget:getRect().height/1.8)
+    minimapWindow:resize(tam, tam)
+end
+
+-- =============================================
+-- SISTEMA DE ARRASTRE UNIFICADO (ACTUALIZADO)
+-- =============================================
+local function setupDrag(icon, storageKey, defaultX, defaultY)
+    icon:breakAnchors()
+    icon:move(storage[storageKey] and storage[storageKey].posX or defaultX, 
+              storage[storageKey] and storage[storageKey].posY or defaultY)
+
+    icon.onDragEnter = function(widget, mousePos)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        widget:breakAnchors()
+        widget.movingReference = {x = mousePos.x - widget:getX(), y = mousePos.y - widget:getY()}
+        return true
+    end
+
+    icon.onDragMove = function(widget, mousePos, moved)
+        if not g_keyboard.isKeyPressed("F2") then return false end
+        local parentRect = widget:getParent():getRect()
+        local x = math.max(parentRect.x, math.min(mousePos.x - widget.movingReference.x, parentRect.x + parentRect.width - widget:getWidth()))
+        local y = math.max(parentRect.y, math.min(mousePos.y - widget.movingReference.y, parentRect.y + parentRect.height - widget:getHeight()))
+        widget:move(x, y)
+        return true
+    end
+
+    icon.onDragLeave = function(widget, pos)
+        storage[storageKey] = {posX = widget:getX(), posY = widget:getY()}
+    end
+end
+
+if not storage.exivaConfig then
+    storage.exivaConfig = {
+        enabled = true,
+        playerName = "",
+        iconPos = {x = 60, y = 350}
+    }
+end
+
+-- Widget para la flecha de dirección
+local widgetArrow = setupUI([[
+UIWidget
+  height: 64
+  width: 64
+  anchors.centerIn: parent
+  visible: false
+]], modules.game_interface.getMapPanel())
+
+-- SISTEMA DE EXIVA
+local target
+onAttackingCreatureChange(function(creature, oldCreature)
+    if creature then
+        target = creature
+    end
+end)
+
+-- Icono de Last Exiva
+local lex = addIcon("lex", {item = 1982, text = "LAST EXIVA"}, function()
+    if not target then return end
+    say('exiva "' .. target:getName() .. '"')
+end)
+if not storage.botIconsVisibility.exivaSystem then lex:hide() end
+
+-- Configurar arrastre para el icono de exiva
+setupDrag(lex, 'exivaIconPos', storage.exivaConfig.iconPos.x, storage.exivaConfig.iconPos.y)
+
+-- Posiciones de la flecha
+local positions = {
+    west = {marginLeft = -80, marginTop = 0, rotation = 270},
+    east = {marginLeft = 80, marginTop = 0, rotation = 90},
+    north = {marginLeft = 0, marginTop = -80, rotation = 0},
+    south = {marginLeft = 0, marginTop = 80, rotation = 180},
+    ["north-west"] = {marginLeft = -80, marginTop = -80, rotation = 315},
+    ["north-east"] = {marginLeft = 80, marginTop = -80, rotation = 45},
+    ["south-west"] = {marginLeft = -80, marginTop = 80, rotation = 225},
+    ["south-east"] = {marginLeft = 80, marginTop = 80, rotation = 135}
+}
+
+local function showArrow(direction)
+    
+    local pos = positions[direction]
+    if pos then
+        widgetArrow:setVisible(true)
+        widgetArrow:setRotation(pos.rotation)
+        widgetArrow:setMarginLeft(pos.marginLeft)
+        widgetArrow:setMarginTop(pos.marginTop)
+        widgetArrow:show()
+        if evento and type(evento) == "number" then
+            removeEvent(evento)
+        end
+        modules.corelib.g_effects.fadeIn(widgetArrow)
+        evento = modules.corelib.scheduleEvent(function()
+            modules.corelib.g_effects.fadeOut(widgetArrow)
+            evento = nil
+        end, 1800)
+    end
+end
+
+onTextMessage(function(mode, text)
+    if mode == 20 then
+        local direction = text:match("is to the ([a-z-]+)%.") or 
+                         text:match("is .- to the ([a-z-]+)%.")
+        if direction then
+            showArrow(direction)
+        end
+    end
+end)
+
+-- Macro para exiva automático
+local exivaMacro = macro(2000, function()
+    if storage.exivaConfig.enabled and storage.exivaConfig.playerName and storage.exivaConfig.playerName:len() > 0 then
+        say('exiva "' .. storage.exivaConfig.playerName .. '"')
+    end
+end)
+
+-- Cargar imagen de flecha
+if not g_resources.fileExists("/arrow.png") then
+    HTTP.get("https://i.imgur.com/UCpAD89.png", function(data, err)
+        if not err then
+            g_resources.writeFileContents("/arrow.png", data)
+            widgetArrow:setImageSource("/arrow.png")
+        end
+    end)
+else
+    widgetArrow:setImageSource("/arrow.png")
+end
+
+-- Configurar arrastre para TODOS los iconos (incluyendo el nuevo)
+local iconGridPositions = {
+    {icon = cIcon, key = 'caveBotIcon', x = 50, y = 50},
+    {icon = tIcon, key = 'targetBotIcon', x = 110, y = 50},
+    {icon = aIcon, key = 'attackBotIcon', x = 170, y = 50},
+    {icon = antiPushIcon, key = 'antiPushIcon', x = 230, y = 50},
+    {icon = aPushTrashIcon, key = 'trashantiPush', x = 290, y = 50},
+    {icon = flwT, key = 'flwT', x = 350, y = 50},
+    {icon = oldTargetIcon, key = 'oldTarget', x = 410, y = 50},
+    {icon = SsaFullIcon, key = 'SsaFull', x = 470, y = 50},
+    {icon = MightFullIcon, key = 'MightFull', x = 530, y = 50},
+    {icon = eRingIcon, key = 'energyR', x = 590, y = 50},
+    {icon = mwallIcon, key = 'MagicWallIcon', x = 650, y = 50},
+    {icon = mwBackIcon, key = 'mwBack', x = 710, y = 50},
+    {icon = bugMapIcon, key = 'bugMapIcon', x = 770, y = 50},
+    {icon = useAllPro, key = 'useAllIcon', x = 830, y = 50},
+    {icon = cancelAttackIcon, key = 'stopAttack', x = 890, y = 50},
+    {icon = spamCleanerIcon, key = 'NoOrangeTxt', x = 950, y = 50},
+    {icon = pvpToggleIcon, key = 'onetwo', x = 1010, y = 50},
+    {icon = bombIcon, key = 'bomb', x = 1070, y = 50},
+    {icon = flowerIcon, key = 'Flowers', x = 1130, y = 50},
+    {icon = manaShieldIcon, key = 'manaShield', x = 1190, y = 50},
+    {icon = miniMapIcon, key = 'toggleMiniMap', x = 50, y = 120},
+        {icon = lex, key = 'exivaIconPos', x = storage.exivaConfig.iconPos.x, y = storage.exivaConfig.iconPos.y}
+}
+
+for _, iconData in ipairs(iconGridPositions) do
+    setupDrag(iconData.icon, iconData.key, iconData.x, iconData.y)
+end
+
+-- Configuración del panel Dance & Outfit
+if not storage.DanceAndOutfit then
+    storage.DanceAndOutfit = {}
+end
+
+local settings = storage.DanceAndOutfit
+
+if settings.enabled == nil then
+    settings.enabled = true
+end
+
+g_ui.loadUIFromString([[
+DanceAndOutfitItem < Panel
+  height: 34
+  margin-top: 7
+  margin-left: 25
+  margin-right: 25
+
+  UIWidget
+    id: text
+    anchors.left: parent.left
+    anchors.verticalCenter: next.verticalCenter
+
+  BotSwitch
+    id: item
+    anchors.top: parent.top
+    anchors.right: parent.right
+
+
+DanceAndOutfitWindow < MainWindow
+  !text: tr('Dance & Outfit')
+  size: 380 280
+  padding: 15
+
+  Label
+    anchors.left: parent.left
+    anchors.right: parent.horizontalCenter
+    anchors.top: parent.top
+    text-align: center
+
+  Label
+    anchors.left: parent.horizontalCenter
+    anchors.right: parent.right
+    anchors.top: parent.top
+    text-align: center
+
+  VerticalScrollBar
+    id: contentScroll
+    anchors.top: prev.bottom
+    anchors.right: parent.right
+    anchors.bottom: separator.top
+    step: 28
+    pixels-scroll: true
+    margin-right: 5
+    margin-top: 5
+    margin-bottom: 5
+
+  ScrollablePanel
+    id: content
+    anchors.top: prev.top
+    anchors.left: parent.left
+    anchors.right: prev.left
+    anchors.bottom: separator.top
+    vertical-scrollbar: contentScroll
+    margin-right: 10
+    margin-bottom: 10
+      
+    Panel
+      id: left
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.horizontalCenter
+      margin-top: 5
+      margin-left: 5
+      margin-right: 15
+      layout:
+        type: verticalBox
+        fit-children: true
+
+    Panel
+      id: right
+      anchors.top: parent.top
+      anchors.left: parent.horizontalCenter
+      anchors.right: parent.right
+      margin-top: 5
+      margin-left: 15
+      margin-right: 5
+      layout:
+        type: verticalBox
+        fit-children: true
+
+    VerticalSeparator
+      id: panelSeparator
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.horizontalCenter: parent.horizontalCenter
+      width: 2
+      margin-left: 5
+      margin-right: 5
+
+  HorizontalSeparator
+    id: separator
+    anchors.right: parent.right
+    anchors.left: parent.left
+    anchors.bottom: closeButton.top
+    margin-bottom: 8
+
+  ResizeBorder
+    id: bottomResizeBorder
+    anchors.fill: separator
+    height: 3
+    minimum: 200
+    maximum: 500
+    margin-left: 3
+    margin-right: 3
+    background: #ffffff88    
+
+  Button
+    id: closeButton
+    !text: tr('Close')
+    font: cipsoftFont
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    size: 45 21
+    margin-right: 5
+]])
+
+DanceAndOutfitWindow = UI.createWindow('DanceAndOutfitWindow', rootWidget)
+DanceAndOutfitWindow:hide()
+DanceAndOutfitWindow.closeButton.onClick = function(widget)
+    DanceAndOutfitWindow:hide()
+end
+
+DanceAndOutfitWindow:setHeight(280)
+DanceAndOutfitWindow:setWidth(380)
+DanceAndOutfitWindow:setText("Bot Icons Control")
+
+-- Botón para abrir el panel
+local ui = setupUI([[
+Panel
+  height: 19
+
+  Button
+    id: push
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    height: 17
+    text: Bot Icons Control
+]])
+
+ui.push.onClick = function(widget)
+    DanceAndOutfitWindow:show()
+    DanceAndOutfitWindow:raise()
+    DanceAndOutfitWindow:focus()
+end
+
+local leftPanel = DanceAndOutfitWindow.content.left
+
+local caveBotToggle = addSwitch("caveBotToggle", "Mostrar CaveBot",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.caveBot = newState
+        if newState then cIcon:show() else cIcon:hide() end
+    end, leftPanel)
+caveBotToggle:setOn(storage.botIconsVisibility.caveBot)
+
+local targetBotToggle = addSwitch("targetBotToggle", "Mostrar TargetBot",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.targetBot = newState
+        if newState then tIcon:show() else tIcon:hide() end
+    end, leftPanel)
+targetBotToggle:setOn(storage.botIconsVisibility.targetBot)
+
+local attackBotToggle = addSwitch("attackBotToggle", "Mostrar AttackBot",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.attackBot = newState
+        if newState then aIcon:show() else aIcon:hide() end
+    end, leftPanel)
+attackBotToggle:setOn(storage.botIconsVisibility.attackBot)
+
+local antiPushToggle = addSwitch("antiPushToggle", "Mostrar AntiPush",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.antiPush = newState
+        if newState then antiPushIcon:show() else antiPushIcon:hide() end
+    end, leftPanel)
+antiPushToggle:setOn(storage.botIconsVisibility.antiPush)
+
+local antiPushTrashToggle = addSwitch("antiPushTrashToggle", "Mostrar AntiPush Trash",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.antiPushTrash = newState
+        if newState then 
+            aPushTrashIcon:show() 
+        else 
+            aPushTrashIcon:hide() 
+        end
+    end, leftPanel)
+antiPushTrashToggle:setOn(storage.botIconsVisibility.antiPushTrash)
+local followToggle = addSwitch("followToggle", "Mostrar Follow",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.follow = newState
+        if newState then 
+            flwT:show() 
+        else 
+            flwT:hide() 
+        end
+    end, leftPanel)
+followToggle:setOn(storage.botIconsVisibility.follow)
+
+local holdTargetToggle = addSwitch("holdTargetToggle", "Mostrar Hold Target",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.holdTarget = newState
+        if newState then 
+            oldTargetIcon:show() 
+        else 
+            oldTargetIcon:hide() 
+        end
+    end, leftPanel)
+holdTargetToggle:setOn(storage.botIconsVisibility.holdTarget)
+
+local ssaFullToggle = addSwitch("ssaFullToggle", "Mostrar SSA Full",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.ssaFull = newState
+        if newState then 
+            SsaFullIcon:show() 
+        else 
+            SsaFullIcon:hide() 
+        end
+    end, leftPanel)
+ssaFullToggle:setOn(storage.botIconsVisibility.ssaFull)
+
+local mightFullToggle = addSwitch("mightFullToggle", "Mostrar Might Ring",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.mightFull = newState
+        if newState then 
+            MightFullIcon:show() 
+        else 
+            MightFullIcon:hide() 
+        end
+    end, leftPanel)
+mightFullToggle:setOn(storage.botIconsVisibility.mightFull)
+
+-- En la sección del panel izquierdo (control de iconos), agregar:
+local energyRingToggle = addSwitch("energyRingToggle", "Mostrar Energy Ring",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.energyRing = newState
+        if newState then 
+            eRingIcon:show() 
+        else 
+            eRingIcon:hide() 
+        end
+    end, leftPanel)
+energyRingToggle:setOn(storage.botIconsVisibility.energyRing)
+
+local magicWallToggle = addSwitch("magicWallToggle", "Mostrar MW",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.magicWall = newState
+        if newState then 
+            mwallIcon:show() 
+        else 
+            mwallIcon:hide() 
+        end
+    end, leftPanel)
+magicWallToggle:setOn(storage.botIconsVisibility.magicWall)
+
+local magicWallBackToggle = addSwitch("magicWallBackToggle", "Mostrar MW BACK",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.magicWallBack = newState
+        if newState then 
+            mwBackIcon:show() 
+        else 
+            mwBackIcon:hide() 
+        end
+    end, leftPanel)
+magicWallBackToggle:setOn(storage.botIconsVisibility.magicWallBack)
+
+local toggleDownToggle = addSwitch("toggleDownToggle", "Mostrar Toggle Down",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.toggleDown = newState
+        if newState then 
+            toggleDownIcon:show() 
+        else 
+            toggleDownIcon:hide() 
+        end
+    end, leftPanel)
+toggleDownToggle:setOn(storage.botIconsVisibility.toggleDown)
+
+local bugMapToggle = addSwitch("bugMapToggle", "Mostrar Bug Map",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.bugMapMobile = newState
+        if newState then 
+            bugMapIcon:show() 
+        else 
+            bugMapIcon:hide() 
+        end
+    end, leftPanel)
+bugMapToggle:setOn(storage.botIconsVisibility.bugMapMobile)
+
+local useAllToggle = addSwitch("useAllToggle", "Mostrar Use All",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.useAll = newState
+        if newState then 
+            useAllPro:show() 
+        else 
+            useAllPro:hide() 
+        end
+    end, leftPanel)
+useAllToggle:setOn(storage.botIconsVisibility.useAll)
+
+local noAttackToggle = addSwitch("noAttackToggle", "Mostrar NO ATK",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.noAttack = newState
+        if newState then 
+            cancelAttackIcon:show() 
+        else 
+            cancelAttackIcon:hide() 
+        end
+    end, leftPanel)
+noAttackToggle:setOn(storage.botIconsVisibility.noAttack)
+
+local spamCleanerToggle = addSwitch("spamCleanerToggle", "Mostrar SPAM Cleaner",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.spamCleaner = newState
+        if newState then 
+            spamCleanerIcon:show() 
+        else 
+            spamCleanerIcon:hide() 
+        end
+    end, leftPanel)
+spamCleanerToggle:setOn(storage.botIconsVisibility.spamCleaner)
+
+local pvpToggle = addSwitch("pvpToggle", "Mostrar PvP Toggle",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.pvpToggle = newState
+        if newState then 
+            pvpToggleIcon:show() 
+        else 
+            pvpToggleIcon:hide() 
+        end
+    end, leftPanel)
+pvpToggle:setOn(storage.botIconsVisibility.pvpToggle)
+
+local bombToggle = addSwitch("bombToggle", "Mostrar Bomb System",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.bombSystem = newState
+        if newState then 
+            bombIcon:show() 
+        else 
+            bombIcon:hide() 
+        end
+    end, leftPanel)
+bombToggle:setOn(storage.botIconsVisibility.bombSystem)
+
+local flowerToggle = addSwitch("flowerToggle", "Mostrar Flower System",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.flowerSystem = newState
+        if newState then 
+            flowerIcon:show() 
+        else 
+            flowerIcon:hide() 
+        end
+    end, leftPanel)
+flowerToggle:setOn(storage.botIconsVisibility.flowerSystem)
+
+local manaShieldToggle = addSwitch("manaShieldToggle", "Mostrar Mana Shield",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.manaShield = newState
+        if newState then 
+            manaShieldIcon:show() 
+        else 
+            manaShieldIcon:hide() 
+        end
+    end, leftPanel)
+manaShieldToggle:setOn(storage.botIconsVisibility.manaShield)
+
+local minimapToggle = addSwitch("minimapToggle", "Mostrar Minimap Toggle",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.minimapToggle = newState
+        if newState then 
+            miniMapIcon:show() 
+        else 
+            miniMapIcon:hide() 
+        end
+    end, leftPanel)
+minimapToggle:setOn(storage.botIconsVisibility.minimapToggle)
+
+local rightPanel = DanceAndOutfitWindow.content.right
+
+addLabel("antiPushItemsLabel", "Anti Push Items:", rightPanel)
+addTextEdit("antiPushItemsTxtEdit", storage.AntiPushItems, function(widget, text)
+    storage.AntiPushItems = text
+end, rightPanel)
+
+addLabel("energyRingLabel", "Energy Ring Settings:", rightPanel)
+
+addLabel("minHPLabel", "% para equipar:", rightPanel)
+addTextEdit("minHPTextEdit", storage.energyRingSettings.minHP, function(widget, text)
+    storage.energyRingSettings.minHP = math.max(1, math.min(tonumber(text) or 80, 99))
+end, rightPanel)
+
+addLabel("maxHPLabel", "% para desequipar:", rightPanel)
+addTextEdit("maxHPTextEdit", storage.energyRingSettings.maxHP, function(widget, text)
+    storage.energyRingSettings.maxHP = math.max(1, math.min(tonumber(text) or 99, 100))
+end, rightPanel)
+
+local oldVersionToggle = addSwitch("oldVersionToggle", "Modo servidores antiguos",
+    function(widget)
+        storage.energyRingSettings.oldVersions = not widget:isOn()
+        widget:setOn(storage.energyRingSettings.oldVersions)
+    end, rightPanel)
+oldVersionToggle:setOn(storage.energyRingSettings.oldVersions)
+
+addLabel("mwallIdLabel", "MWALL ID:", rightPanel)
+addTextEdit("mwallIdTextEdit", storage.MWallSettings.id, function(widget, text)
+    storage.MWallSettings.id = text
+end, rightPanel)
+
+addLabel("mwallDistanceLabel", "Distance SQMs:", rightPanel)
+addTextEdit("mwallDistanceTextEdit", storage.MWallSettings.distance, function(widget, text)
+    storage.MWallSettings.distance = math.max(1, math.min(tonumber(text) or 2, 10))
+end, rightPanel)
+
+local exivaToggle = addSwitch("exivaToggle", "Mostrar Exiva System",
+    function(widget)
+        local newState = not widget:isOn()
+        widget:setOn(newState)
+        storage.botIconsVisibility.exivaSystem = newState
+        if newState then 
+            lex:show() 
+        else 
+            lex:hide() 
+        end
+    end, leftPanel)
+exivaToggle:setOn(storage.botIconsVisibility.exivaSystem)
+
+-- Agregar controles de configuración al panel derecho
+addLabel("exivaPlayerLabel", "Exiva Player Name:")
+addTextEdit("exivaPlayerTextEdit", storage.exivaConfig.playerName or "", function(widget, text)
+    text = text:gsub('"', '')
+    storage.exivaConfig.playerName = text
+    widget:setText(text)
+end)
+
+local exivaEnabledToggle = addSwitch("exivaEnabledToggle", "Exiva System Enabled",
+    function(widget)
+        storage.exivaConfig.enabled = not widget:isOn()
+        widget:setOn(storage.exivaConfig.enabled)
+    end)
+exivaEnabledToggle:setOn(storage.exivaConfig.enabled)
